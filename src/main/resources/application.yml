@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: querypilot
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/querypilot}
+    username: ${DB_USERNAME:querypilot}
+    password: ${DB_PASSWORD:querypilot}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
