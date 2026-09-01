@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: querypilot-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: querypilot
+      POSTGRES_USER: querypilot
+      POSTGRES_PASSWORD: querypilot
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - querypilot_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  querypilot_postgres_data:

@@ -1,0 +1,9 @@
+databaseChangeLog:
+   - include:
+      file: db/changelog/changesets/001-create-customers-table.sql
+   - include:
+      file: db/changelog/changesets/002-create-orders-table.sql
+   - include:
+      file: db/changelog/changesets/003-seed-test-data.sql
+      
+    
