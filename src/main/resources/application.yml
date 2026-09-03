@@ -25,3 +25,10 @@ management:
     web:
       exposure:
         include: health,info
+
+querypilot:
+  sandbox:
+    admin-url: jdbc:postgresql://localhost:5433/postgres
+    database-name: querypilot_sandbox
+    baseline-database-name: querypilot
+    jdbc-url: jdbc:postgresql://localhost:5433/querypilot_sandbox

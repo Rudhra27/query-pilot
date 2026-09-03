@@ -10,9 +10,11 @@ public record QueryAnalysisResponse(
         double executionTimeMs,
         double planningTimeMs,
         PlanSummary plan,
-        List<Issue> issues
+        List<Issue> issues,
+        List<OptimizationCandidate> candidates,
+        List<OptimizationValidationResult> validations
 
-) {
+)  {
     public record PlanSummary(
             double totalCost,
             String rootNodeType,
@@ -26,9 +28,13 @@ public record QueryAnalysisResponse(
             String type,
             String severity,
             String relation,
-            Long rowsRemovedByFilter
-    ) {
-    }
+            Long rowsRemovedByFilter,
+            Long actualRows,
+            Long actualLoops,
+            Long totalActualRowsProcessed,
+            String filter
+    ) {}
+
 }
 //
 //Sample full Response:
