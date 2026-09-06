@@ -15,6 +15,12 @@ public class SandboxDatabaseService {
 
     private static final Logger log = LoggerFactory.getLogger(SandboxDatabaseService.class);
 
+    // Postgres SQLSTATE for "source database is being accessed by other
+    // users" - CREATE DATABASE ... TEMPLATE requires zero other connections
+    // to the template. See createSandboxWithRetry().
+    private static final String OBJECT_IN_USE_SQLSTATE = "55006";
+    private static final int CREATE_SANDBOX_MAX_ATTEMPTS = 5;
+
     private final SandboxProperties sandboxProperties;
 
     public SandboxDatabaseService(
@@ -65,8 +71,52 @@ public class SandboxDatabaseService {
         terminateConnections(adminJdbcTemplate, sandboxDatabase);
         dropSandboxIfExists(adminJdbcTemplate, sandboxDatabase);
         terminateConnections(adminJdbcTemplate, baselineDatabase);
-        createSandbox(adminJdbcTemplate, sandboxDatabase, baselineDatabase);
+        createSandboxWithRetry(adminJdbcTemplate, sandboxDatabase, baselineDatabase);
         transferSandboxTableOwnership();
+    }
+
+    /**
+     * OptimizationValidationService evicts the primary pool's idle
+     * connections before calling this, but HikariCP's eviction closes them
+     * on its own housekeeper thread - there's no guarantee the physical
+     * Postgres backend is gone by the time CREATE DATABASE runs a moment
+     * later. Rather than assume that race never loses, retry with a short
+     * backoff specifically on Postgres's "source database is being accessed
+     * by other users" error, re-attempting termination each time.
+     */
+    private void createSandboxWithRetry(JdbcTemplate adminJdbcTemplate, String sandboxDatabase, String baselineDatabase) {
+        for (int attempt = 1; attempt <= CREATE_SANDBOX_MAX_ATTEMPTS; attempt++) {
+            try {
+                createSandbox(adminJdbcTemplate, sandboxDatabase, baselineDatabase);
+                return;
+            } catch (DataAccessException exception) {
+                if (attempt == CREATE_SANDBOX_MAX_ATTEMPTS || !isTemplateInUse(exception)) {
+                    throw exception;
+                }
+                log.warn("Template database '{}' still has active connections (attempt {}/{}), retrying...",
+                        baselineDatabase, attempt, CREATE_SANDBOX_MAX_ATTEMPTS);
+                sleepBriefly(attempt);
+                terminateConnections(adminJdbcTemplate, baselineDatabase);
+            }
+        }
+    }
+
+    private boolean isTemplateInUse(DataAccessException exception) {
+        // Checked against java.sql.SQLException (JDK standard) rather than
+        // the postgres driver's own PSQLException, since that driver is a
+        // runtimeOnly dependency and isn't on this module's compile
+        // classpath.
+        Throwable rootCause = exception.getRootCause();
+        return rootCause instanceof java.sql.SQLException sqlException
+                && OBJECT_IN_USE_SQLSTATE.equals(sqlException.getSQLState());
+    }
+
+    private void sleepBriefly(int attempt) {
+        try {
+            Thread.sleep(200L * attempt);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
