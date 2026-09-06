@@ -38,6 +38,18 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    db:
+      # Render's own uptime monitor polls /actuator/health independently of
+      # app traffic. The default DB indicator borrows a connection from the
+      # SAME primary pool to run it - an external, unpredictably-timed
+      # source of "another connection" that can reopen the pool at any
+      # moment, including the brief window between
+      # OptimizationValidationService's eviction and CREATE DATABASE ...
+      # TEMPLATE. Render only needs a 200 from this endpoint, not a
+      # DB-verified status, so disable this specific indicator rather than
+      # keep racing it.
+      enabled: false
 
 querypilot:
   sandbox:
