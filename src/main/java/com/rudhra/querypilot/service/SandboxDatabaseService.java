@@ -1,6 +1,9 @@
 package com.rudhra.querypilot.service;
 
 import com.rudhra.querypilot.config.SandboxProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.stereotype.Service;
@@ -9,6 +12,8 @@ import java.util.List;
 
 @Service
 public class SandboxDatabaseService {
+
+    private static final Logger log = LoggerFactory.getLogger(SandboxDatabaseService.class);
 
     private final SandboxProperties sandboxProperties;
 
@@ -88,15 +93,35 @@ public class SandboxDatabaseService {
         }
     }
     private void terminateConnections(JdbcTemplate jdbcTemplate, String databaseName) {
-        jdbcTemplate.queryForList(
-                """
-                SELECT pg_terminate_backend(pid)
-                FROM pg_stat_activity
-                WHERE datname = ?
-                AND pid <> pg_backend_pid()
-                """,
-                databaseName
-        );
+        /*
+         * Best-effort cleanup. pg_terminate_backend can only signal a
+         * backend if the caller is superuser, is the same role as that
+         * backend, or holds pg_signal_backend. The admin role is a real
+         * superuser locally, but on managed hosts (e.g. Render) it is not,
+         * so a leftover connection from a *different* role (querypilot_
+         * readonly's pool, say) makes this throw "permission denied to
+         * terminate process" instead of actually clearing anything. The
+         * dominant case that actually needs this - the primary read-only
+         * pool - is handled deterministically by evicting that pool's own
+         * idle connections before this is even called (see
+         * OptimizationValidationService), so failing here shouldn't abort
+         * the whole request; log and let the DROP/CREATE DATABASE below
+         * surface a clearer error if a connection genuinely remains.
+         */
+        try {
+            jdbcTemplate.queryForList(
+                    """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = ?
+                    AND pid <> pg_backend_pid()
+                    """,
+                    databaseName
+            );
+        } catch (DataAccessException exception) {
+            log.warn("Could not terminate existing connections to '{}' (best-effort): {}",
+                    databaseName, exception.getMessage());
+        }
     }
     private void dropSandboxIfExists(JdbcTemplate jdbcTemplate, String databaseName) {
         Boolean exists = jdbcTemplate.queryForObject(

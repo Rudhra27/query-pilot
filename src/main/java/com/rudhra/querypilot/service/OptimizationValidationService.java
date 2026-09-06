@@ -1,12 +1,15 @@
 package com.rudhra.querypilot.service;
 
 import com.rudhra.querypilot.dto.BenchmarkResult;
+import com.zaxxer.hikari.HikariDataSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.rudhra.querypilot.dto.OptimizationCandidate;
 import com.rudhra.querypilot.dto.OptimizationValidationResult;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 
 @Service
 public class OptimizationValidationService {
@@ -30,6 +33,19 @@ public class OptimizationValidationService {
              double beforeTotalCost) {
 
         BenchmarkResult beforeBenchmark = benchmarkService.benchmark(jdbcTemplate, originalSql);
+
+        // CREATE DATABASE ... TEMPLATE requires zero other connections to the
+        // template (primary) database. The pool behind `jdbcTemplate` just
+        // returned a connection from the benchmark above but keeps it open
+        // and idle for reuse. Locally, SandboxDatabaseService's admin role is
+        // a real Postgres superuser and can pg_terminate_backend anyone's
+        // session to clear this; on managed hosts (e.g. Render) that admin
+        // role is not a superuser and cannot terminate a *different* role's
+        // backend (querypilot_readonly's pool here) - only its own. So the
+        // pool has to release its own idle connection instead of being
+        // force-killed from outside.
+        evictIdlePrimaryConnections();
+
         // 1. Create a fresh sandbox clone
         sandboxDatabaseService.createFreshSandbox();
 
@@ -73,6 +89,13 @@ public class OptimizationValidationService {
                     "Failed to parse sandbox execution plan",
                     exception
             );
+        }
+    }
+
+    private void evictIdlePrimaryConnections() {
+        DataSource dataSource = jdbcTemplate.getDataSource();
+        if (dataSource instanceof HikariDataSource hikariDataSource) {
+            hikariDataSource.getHikariPoolMXBean().softEvictConnections();
         }
     }
 }
