@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/querypilot}
-    username: ${DB_USERNAME:querypilot}
-    password: ${DB_PASSWORD:querypilot}
+    username: ${DB_USERNAME:querypilot_readonly}
+    password: ${DB_PASSWORD:querypilot_readonly_pw}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,6 +19,11 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    # Migrations need DDL rights the runtime datasource above no longer has,
+    # so Liquibase gets its own connection using the admin role.
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/querypilot}
+    user: ${DB_ADMIN_USERNAME:querypilot}
+    password: ${DB_ADMIN_PASSWORD:querypilot}
 
 management:
   endpoints:
@@ -28,7 +33,22 @@ management:
 
 querypilot:
   sandbox:
-    admin-url: jdbc:postgresql://localhost:5433/postgres
+    admin-url: ${SANDBOX_ADMIN_URL:jdbc:postgresql://localhost:5433/postgres}
     database-name: querypilot_sandbox
     baseline-database-name: querypilot
-    jdbc-url: jdbc:postgresql://localhost:5433/querypilot_sandbox
+    jdbc-url: ${SANDBOX_JDBC_URL:jdbc:postgresql://localhost:5433/querypilot_sandbox}
+    # Superuser role: only used to drop/recreate the sandbox database and
+    # to transfer sandbox table ownership after each clone.
+    admin-username: ${DB_ADMIN_USERNAME:querypilot}
+    admin-password: ${DB_ADMIN_PASSWORD:querypilot}
+    # Least-privilege role used for the actual query/benchmark/CREATE INDEX
+    # traffic against the disposable sandbox database. Cannot connect to
+    # the primary querypilot database (see scripts/setup-security-roles.sql).
+    username: ${SANDBOX_DB_USERNAME:querypilot_sandbox}
+    password: ${SANDBOX_DB_PASSWORD:querypilot_sandbox_pw}
+
+  ai:
+    enabled: true
+    api-key: ${GROQ_API_KEY}
+    base-url: https://api.groq.com/openai/v1
+    model: openai/gpt-oss-20b

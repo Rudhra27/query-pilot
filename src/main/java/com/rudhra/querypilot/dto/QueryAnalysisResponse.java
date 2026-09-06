@@ -1,6 +1,7 @@
 package com.rudhra.querypilot.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.rudhra.querypilot.ai.AiOptimizationAdvice;
 
 import java.util.List;
 
@@ -11,16 +12,29 @@ public record QueryAnalysisResponse(
         double planningTimeMs,
         PlanSummary plan,
         List<Issue> issues,
+        List<Join> joins,
+        List<PlanOperation> operations,
         List<OptimizationCandidate> candidates,
-        List<OptimizationValidationResult> validations
+        List<OptimizationValidationResult> validations,
+        AiOptimizationAdvice aiRecommendation,
+        List<OptimizationValidationResult> aiValidations
 
-)  {
+) {
+    public record PlanOperation(
+            String type,
+            String severity,
+            String relation,
+            Long estimatedRows,
+            Long actualRows,
+            Long actualLoops,
+            Double totalCost
+    ) {
+    }
     public record PlanSummary(
             double totalCost,
             String rootNodeType,
             Long estimatedRows,
             Long actualRows
-
     ) {
     }
 
@@ -33,8 +47,18 @@ public record QueryAnalysisResponse(
             Long actualLoops,
             Long totalActualRowsProcessed,
             String filter
-    ) {}
+    ) {
+    }
 
+    public record Join(
+            String type,
+            Long estimatedRows,
+            Long actualRows,
+            Long actualLoops,
+            Double totalCost,
+            List<String> relations
+    ) {
+    }
 }
 //
 //Sample full Response:

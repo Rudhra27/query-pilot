@@ -7,6 +7,10 @@ public record SandboxProperties(
         String adminUrl,
         String databaseName,
         String baselineDatabaseName,
-        String jdbcUrl
+        String jdbcUrl,
+        String adminUsername,
+        String adminPassword,
+        String username,
+        String password
 ) {
 }

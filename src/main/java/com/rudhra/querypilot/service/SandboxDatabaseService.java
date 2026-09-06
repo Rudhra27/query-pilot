@@ -5,6 +5,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class SandboxDatabaseService {
 
@@ -17,12 +19,7 @@ public class SandboxDatabaseService {
     }
 
     public boolean testAdminConnection() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setUrl(sandboxProperties.adminUrl());
-        dataSource.setUsername("querypilot");
-        dataSource.setPassword("querypilot");
-
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        JdbcTemplate jdbcTemplate = createAdminJdbcTemplate();
         Integer result = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
         return result != null && result == 1;
     }
@@ -38,11 +35,22 @@ public class SandboxDatabaseService {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setUrl(sandboxProperties.adminUrl());
 
-        dataSource.setUsername("querypilot");
-        dataSource.setPassword("querypilot");
+        dataSource.setUsername(sandboxProperties.adminUsername());
+        dataSource.setPassword(sandboxProperties.adminPassword());
 
         return new JdbcTemplate(dataSource);
     }
+
+    private JdbcTemplate createSandboxAdminJdbcTemplate() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setUrl(sandboxProperties.jdbcUrl());
+
+        dataSource.setUsername(sandboxProperties.adminUsername());
+        dataSource.setPassword(sandboxProperties.adminPassword());
+
+        return new JdbcTemplate(dataSource);
+    }
+
     public void createFreshSandbox() {
 
         JdbcTemplate adminJdbcTemplate = createAdminJdbcTemplate();
@@ -53,6 +61,31 @@ public class SandboxDatabaseService {
         dropSandboxIfExists(adminJdbcTemplate, sandboxDatabase);
         terminateConnections(adminJdbcTemplate, baselineDatabase);
         createSandbox(adminJdbcTemplate, sandboxDatabase, baselineDatabase);
+        transferSandboxTableOwnership();
+    }
+
+    /**
+     * The sandbox connection runs as the least-privilege querypilot_sandbox
+     * role so it can be denied CONNECT to the primary database. On
+     * PostgreSQL < 17 CREATE/DROP INDEX requires table ownership (there is
+     * no standalone grantable privilege for it yet), so ownership of the
+     * freshly cloned tables is handed to that role here, using the
+     * superuser admin connection, immediately after each clone.
+     */
+    private void transferSandboxTableOwnership() {
+        JdbcTemplate sandboxAdminJdbcTemplate = createSandboxAdminJdbcTemplate();
+        String sandboxRole = sandboxProperties.username();
+
+        sandboxAdminJdbcTemplate.execute("GRANT USAGE, CREATE ON SCHEMA public TO " + sandboxRole);
+
+        List<String> tables = sandboxAdminJdbcTemplate.queryForList(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+                String.class
+        );
+
+        for (String table : tables) {
+            sandboxAdminJdbcTemplate.execute("ALTER TABLE " + table + " OWNER TO " + sandboxRole);
+        }
     }
     private void terminateConnections(JdbcTemplate jdbcTemplate, String databaseName) {
         jdbcTemplate.queryForList(
@@ -91,8 +124,8 @@ public class SandboxDatabaseService {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setUrl(sandboxProperties.jdbcUrl());
 
-        dataSource.setUsername("querypilot");
-        dataSource.setPassword("querypilot");
+        dataSource.setUsername(sandboxProperties.username());
+        dataSource.setPassword(sandboxProperties.password());
 
         return new JdbcTemplate(dataSource);
     }

@@ -41,6 +41,22 @@ public class DatabaseMetadataService {
         );
     }
 
+    public List<String> getColumns(String tableName) {
+        String sql = """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = ?
+                ORDER BY ordinal_position
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getString("column_name"),
+                tableName
+        );
+    }
+
     private String getSql() {
         return """
                 SELECT

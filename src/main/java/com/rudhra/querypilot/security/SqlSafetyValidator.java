@@ -70,7 +70,11 @@ public class SqlSafetyValidator {
     }
 
     private boolean containsMultipleStatements(String sql) {
-        return sql.replaceAll("'([^']|'')*'", "").contains(";");
+        String withoutStrings = sql.replaceAll("'([^']|'')*'", "").trim();
+        if (withoutStrings.endsWith(";")) {
+            withoutStrings = withoutStrings.substring(0, withoutStrings.length() - 1);
+        }
+        return withoutStrings.contains(";");
     }
 
     private String removeComments(String sql) {
