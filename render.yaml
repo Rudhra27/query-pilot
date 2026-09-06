@@ -60,6 +60,13 @@ services:
       - key: SANDBOX_DB_PASSWORD
         sync: false
 
+      # The name of the PRIMARY database, used as the CREATE DATABASE ...
+      # TEMPLATE source when cloning the sandbox. Not secret, but instance-
+      # specific: Render assigns this name when the Postgres instance is
+      # created, and it won't be "querypilot" like local dev's docker-compose.
+      - key: SANDBOX_BASELINE_DATABASE_NAME
+        sync: false
+
       # AI recommendations, via Groq's free OpenAI-compatible endpoint.
       # base-url and model are fixed in application.yml, not env vars.
       - key: GROQ_API_KEY
