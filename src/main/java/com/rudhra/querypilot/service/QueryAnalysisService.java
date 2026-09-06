@@ -258,7 +258,14 @@ public class QueryAnalysisService {
             return null;
         }
 
-        return normalizedFilter.split("=")[0].trim();
+        String column = normalizedFilter.split("=")[0].trim();
+
+        // Postgres renders a filter comparing a VARCHAR column against a
+        // text literal as e.g. "(email)::text = 'x'::text" - the explicit
+        // cast survives the paren-stripping above and would otherwise end
+        // up in the generated index name/SQL ("idx_customers_email::text",
+        // "CREATE INDEX ... (email::text)"), which is invalid syntax.
+        return column.replaceAll("::\\w+$", "");
     }
 
     private boolean isColumnIndexed(String column, List<IndexMetadata> indexes) {
