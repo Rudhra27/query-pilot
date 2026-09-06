@@ -11,7 +11,13 @@
 #   2. Create the sandbox database once: CREATE DATABASE querypilot_sandbox
 #      TEMPLATE <your primary db name> (SandboxDatabaseService recreates it
 #      on every validation run after this).
-#   3. Fill in the env vars below in the Render dashboard using that
+#   3. GRANT querypilot_sandbox TO <the Render-provided admin role> - without
+#      this, transferSandboxTableOwnership()'s ALTER TABLE ... OWNER TO
+#      querypilot_sandbox fails with "must be able to SET ROLE
+#      querypilot_sandbox" on every validation run, since reassigning
+#      ownership to a role requires membership in it (true admin/superuser
+#      roles get this implicitly; Render's admin role does not).
+#   4. Fill in the env vars below in the Render dashboard using that
 #      instance's host: the default role Render generated for you is the
 #      admin/superuser-equivalent (DB_ADMIN_USERNAME/PASSWORD - it owns the
 #      database and can CREATE DATABASE/ROLE); the two roles you created in
