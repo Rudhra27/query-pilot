@@ -7,6 +7,14 @@ spring:
     username: ${DB_USERNAME:querypilot_readonly}
     password: ${DB_PASSWORD:querypilot_readonly_pw}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # Default minimum-idle equals the pool size, so Hikari immediately
+      # reopens a fresh idle connection right after
+      # OptimizationValidationService evicts one to let CREATE DATABASE ...
+      # TEMPLATE proceed - defeating that eviction every time. This app's
+      # traffic is bursty single-request analysis, not sustained load, so a
+      # warm pool buys nothing here and actively fights the sandbox clone.
+      minimum-idle: 0
 
   jpa:
     hibernate:
