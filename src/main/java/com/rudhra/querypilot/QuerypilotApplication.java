@@ -2,10 +2,14 @@ package com.rudhra.querypilot;
 
 import java.util.TimeZone;
 
+import com.rudhra.querypilot.config.AiProperties;
+import com.rudhra.querypilot.config.SandboxProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
+@EnableConfigurationProperties({SandboxProperties.class, AiProperties.class})
 public class QuerypilotApplication {
 
 	public static void main(String[] args) {

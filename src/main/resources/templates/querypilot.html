@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QueryPilot</title>
+    <link rel="stylesheet" th:href="@{/css/querypilot.css}">
+</head>
+<body>
+
+<header class="app-header">
+    <div class="brand">
+        <h1 class="brand-name">QueryPilot</h1>
+        <p class="brand-tagline">AI-Assisted PostgreSQL Query Optimization</p>
+    </div>
+    <div class="sandbox-status" id="sandbox-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Checking sandbox…</span>
+    </div>
+</header>
+
+<main class="app-main">
+
+    <section class="panel editor-panel">
+        <div class="panel-title-row">
+            <h2 class="panel-title">SQL Query</h2>
+        </div>
+        <textarea
+                id="sql-input"
+                class="sql-editor"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="SELECT * FROM orders WHERE customer_id = 50000;"></textarea>
+        <div class="editor-controls">
+            <button type="button" id="clear-btn" class="btn btn-ghost">Clear</button>
+            <button type="button" id="analyze-btn" class="btn btn-primary">
+                <span class="btn-spinner" id="analyze-spinner" hidden></span>
+                <span id="analyze-btn-label">Analyze Query</span>
+            </button>
+        </div>
+    </section>
+
+    <div class="loading-banner" id="loading-banner" hidden>
+        <span class="btn-spinner"></span>
+        <span>Analyzing query…</span>
+    </div>
+
+    <div class="error-banner" id="error-banner" hidden>
+        <div class="error-title" id="error-title"></div>
+        <div class="error-message" id="error-message"></div>
+    </div>
+
+    <div class="results" id="results" hidden>
+
+        <section class="metrics-grid" id="metrics-grid"></section>
+
+        <section class="panel">
+            <h2 class="panel-title">Plan Summary</h2>
+            <div class="plan-summary-grid" id="plan-summary-grid"></div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title">Issues</h2>
+            <div id="issues-list"></div>
+        </section>
+
+        <section class="panel" id="joins-panel" hidden>
+            <h2 class="panel-title">Joins</h2>
+            <div id="joins-list"></div>
+        </section>
+
+        <section class="panel" id="operations-panel" hidden>
+            <h2 class="panel-title">Operations</h2>
+            <div id="operations-list"></div>
+        </section>
+
+        <section class="panel" id="candidates-panel" hidden>
+            <h2 class="panel-title">Optimization Candidate</h2>
+            <div id="candidates-list"></div>
+        </section>
+
+        <section class="panel" id="validations-panel" hidden>
+            <h2 class="panel-title">Validation</h2>
+            <div id="validations-list"></div>
+        </section>
+
+        <section class="panel ai-panel">
+            <h2 class="panel-title">AI Recommendation</h2>
+            <p class="ai-disclaimer">
+                Reasoning generated from the execution evidence above. This is an explanation, not a database change.
+            </p>
+            <div id="ai-content"></div>
+        </section>
+
+        <section class="panel" id="ai-validations-panel" hidden>
+            <h2 class="panel-title">AI-Proposed Optimization Validation</h2>
+            <div id="ai-validations-list"></div>
+        </section>
+
+    </div>
+
+</main>
+
+<script th:src="@{/js/querypilot.js}"></script>
+</body>
+</html>

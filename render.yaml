@@ -1,0 +1,66 @@
+# Render blueprint: a Docker web service. Bring your own PostgreSQL (see
+# ARCHITECTURE.md §4 for why - this app needs CREATE DATABASE/CREATE ROLE
+# privileges a typical single-connection-string app never uses, which a
+# dedicated Render Postgres instance supports but a branching-based
+# provider like Neon may not).
+#
+# One-time setup before this service can start, against your Postgres
+# instance's External Database URL:
+#   1. Run scripts/setup-security-roles.sql (creates querypilot_readonly
+#      and querypilot_sandbox with the passwords you choose).
+#   2. Create the sandbox database once: CREATE DATABASE querypilot_sandbox
+#      TEMPLATE <your primary db name> (SandboxDatabaseService recreates it
+#      on every validation run after this).
+#   3. Fill in the env vars below in the Render dashboard using that
+#      instance's host: the default role Render generated for you is the
+#      admin/superuser-equivalent (DB_ADMIN_USERNAME/PASSWORD - it owns the
+#      database and can CREATE DATABASE/ROLE); the two roles you created in
+#      step 1 are DB_USERNAME/PASSWORD (read-only) and
+#      SANDBOX_DB_USERNAME/PASSWORD.
+#
+# Deploy with "New > Blueprint" and point it at this repo.
+services:
+  - type: web
+    name: querypilot
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      # Primary connection, used for EXPLAIN ANALYZE + benchmarking.
+      # postgresql://<host>/<primary-db>?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        value: querypilot_readonly
+      - key: DB_PASSWORD
+        sync: false
+
+      # Admin connection: Liquibase migrations, and SandboxDatabaseService's
+      # drop/recreate-sandbox + ownership-transfer operations. This is the
+      # Postgres-instance-provided owner role, not one you create yourself.
+      - key: DB_ADMIN_USERNAME
+        sync: false
+      - key: DB_ADMIN_PASSWORD
+        sync: false
+
+      # Admin connection pointed at the neutral "postgres" maintenance
+      # database (needed because you can't DROP/CREATE a database while
+      # connected to it). Same host/admin role as above, different dbname.
+      # postgresql://<host>/postgres?sslmode=require
+      - key: SANDBOX_ADMIN_URL
+        sync: false
+
+      # The disposable sandbox database itself.
+      # postgresql://<host>/querypilot_sandbox?sslmode=require
+      - key: SANDBOX_JDBC_URL
+        sync: false
+      - key: SANDBOX_DB_USERNAME
+        value: querypilot_sandbox
+      - key: SANDBOX_DB_PASSWORD
+        sync: false
+
+      # AI recommendations, via Groq's free OpenAI-compatible endpoint.
+      # base-url and model are fixed in application.yml, not env vars.
+      - key: GROQ_API_KEY
+        sync: false
